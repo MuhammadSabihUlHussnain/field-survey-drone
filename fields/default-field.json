@@ -1,0 +1,9 @@
+{
+  "fieldId": "south-field",
+  "name": "South Field",
+  "cropType": "corn",
+  "grid": { "columns": 50, "rows": 50, "spacing": 1.0 },
+  "seed": 424,
+  "diseasedShare": 0.08,
+  "distribution": "patches"
+}

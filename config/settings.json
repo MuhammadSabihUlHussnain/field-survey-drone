@@ -1,0 +1,39 @@
+{
+  "version": "1.0",
+  "detection": {
+    "activeDetector": "rule-based",
+    "flagThreshold": 0.5,
+    "ruleBased": {
+      "rules": [
+        { "feature": "leafColorIndex", "healthyValue": 0.78, "diseasedValue": 0.40, "weight": 0.40 },
+        { "feature": "leafSpotCoverage", "healthyValue": 0.03, "diseasedValue": 0.30, "weight": 0.45 },
+        { "feature": "canopyHeight", "healthyValue": 1.95, "diseasedValue": 1.45, "weight": 0.15 }
+      ],
+      "statusThresholds": { "stressed": 0.30, "diseased": 0.60 }
+    }
+  },
+  "zones": {
+    "groupingDistance": 3.0
+  },
+  "camera": {
+    "fovDegrees": 40,
+    "referenceAltitude": 10,
+    "noise": { "leafColorIndex": 0.035, "leafSpotCoverage": 0.025, "canopyHeight": 0.07 }
+  },
+  "drone": {
+    "cruiseSpeed": 5.0,
+    "climbRate": 2.5,
+    "scanDwellSeconds": 0.6,
+    "batteryDrainPerSecond": { "flying": 0.34, "hovering": 0.26 },
+    "returnBelowPercent": 20,
+    "basePad": { "x": -6, "z": -6 }
+  },
+  "route": {
+    "defaultAltitude": 10,
+    "defaultLineSpacing": 6,
+    "minAltitude": 4,
+    "maxAltitude": 25,
+    "minLineSpacing": 2,
+    "maxLineSpacing": 12
+  }
+}

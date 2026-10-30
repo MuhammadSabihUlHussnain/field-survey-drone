@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Field Survey Drone</title>
+    <meta name="description" content="Group D, CSC 424: a simulated drone surveys a corn field, flags diseased plants with a rule-based detector and maps them for the farmer." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23162019'/%3E%3Cpath d='M16 7l2.2 4.6L23 12l-3.5 3.3.9 4.9L16 17.8l-4.4 2.4.9-4.9L9 12l4.8-.4z' fill='%237fd16b'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="css/styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three.module.min.js",
+          "three/addons/": "./vendor/addons/"
+        }
+      }
+    </script>
+    <script type="module" src="js/main.js"></script>
+  </head>
+  <body data-screen="loading">
+    <header class="topbar">
+      <button class="brand" id="brand" type="button" title="Main menu">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#1d2a22" /><circle cx="9" cy="9" r="4" fill="none" stroke="#7fd16b" stroke-width="2" /><circle cx="23" cy="9" r="4" fill="none" stroke="#7fd16b" stroke-width="2" /><circle cx="9" cy="23" r="4" fill="none" stroke="#7fd16b" stroke-width="2" /><circle cx="23" cy="23" r="4" fill="none" stroke="#7fd16b" stroke-width="2" /><rect x="12" y="12" width="8" height="8" rx="2" fill="#f2b134" /></svg>
+        <span class="brand-text"><strong>Field Survey Drone</strong><small>Group D · CSC 424 · v1.0 MVP</small></span>
+      </button>
+      <nav class="steps" aria-label="Workflow">
+        <button type="button" data-step="setup">1 Plan</button>
+        <button type="button" data-step="survey">2 Fly</button>
+        <button type="button" data-step="dashboard">3 Review</button>
+      </nav>
+      <div class="topbar-right">
+        <div class="chip chip-schedule" id="schedule-chip" hidden>
+          <span class="dot"></span><span id="schedule-text">Scheduled</span>
+          <button type="button" id="schedule-chip-cancel" aria-label="Cancel scheduled survey">×</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- Loading / fatal error -->
+      <section class="screen screen-center" id="screen-loading">
+        <div class="loader" aria-label="Loading"></div>
+      </section>
+      <section class="screen screen-center" id="screen-fatal" hidden>
+        <div class="card fatal-card">
+          <h1>Can't start the simulation</h1>
+          <p id="fatal-message"></p>
+          <p class="muted">If you opened <code>index.html</code> straight from your disk, the browser blocks the config files. Serve the folder instead, for example with <code>npx http-server</code> or <code>python -m http.server</code>, or open the GitHub Pages link.</p>
+        </div>
+      </section>
+
+      <!-- UI-1 Main menu -->
+      <section class="screen" id="screen-menu" hidden>
+        <div class="menu-layout">
+          <div class="menu-hero">
+            <p class="eyebrow">Precision agriculture · simulated</p>
+            <h1>Find the sick plants before they spread.</h1>
+            <p class="lede">A virtual drone flies a planned route over a corn field, scans every plant it passes and flags the ones that look diseased. You review each flagged zone and decide where treatment goes.</p>
+            <div class="menu-buttons">
+              <button class="menu-btn primary" id="menu-new" type="button"><span class="menu-btn-title">New Survey</span><span class="menu-btn-sub">Set up the field and plan the route</span></button>
+              <button class="menu-btn" id="menu-load" type="button"><span class="menu-btn-title">Load Field</span><span class="menu-btn-sub">Sample field or your own JSON file</span></button>
+              <button class="menu-btn" id="menu-schedule" type="button"><span class="menu-btn-title">Schedule Survey</span><span class="menu-btn-sub">Let the Survey Timer start it</span></button>
+              <button class="menu-btn subtle" id="menu-quit" type="button"><span class="menu-btn-title">Quit</span><span class="menu-btn-sub">End this session</span></button>
+            </div>
+          </div>
+          <aside class="menu-side">
+            <div class="card">
+              <h2 class="card-title">Current field</h2>
+              <dl class="kv" id="menu-field-info"></dl>
+            </div>
+            <div class="card">
+              <h2 class="card-title">Earlier surveys</h2>
+              <ul class="history" id="menu-history"></ul>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Field setup and route planning (FR-1.x, FR-2.x) -->
+      <section class="screen" id="screen-setup" hidden>
+        <div class="work-layout">
+          <div class="stage">
+            <div class="stage-toolbar">
+              <div class="seg" role="group" aria-label="Route editing tool">
+                <button type="button" data-tool="move" class="active" title="Drag a waypoint to move it">Move</button>
+                <button type="button" data-tool="add" title="Click the map to add a waypoint">Add</button>
+                <button type="button" data-tool="delete" title="Click a waypoint to delete it">Delete</button>
+              </div>
+              <button type="button" class="btn ghost small" id="btn-reset-route">Reset route</button>
+              <label class="check"><input type="checkbox" id="planner-truth" checked /> Show simulated disease</label>
+              <label class="check"><input type="checkbox" id="planner-footprints" checked /> Show camera footprints</label>
+            </div>
+            <canvas class="map-canvas" id="planner-canvas" aria-label="Field and route planner"></canvas>
+            <div class="legend">
+              <span><i style="background:#3f7f3a"></i>Healthy</span>
+              <span><i style="background:#c3b13d"></i>Stressed</span>
+              <span><i style="background:#c9622e"></i>Diseased</span>
+              <span><i class="ring"></i>Waypoint</span>
+              <span><i style="background:rgba(120,200,255,.35)"></i>Camera footprint</span>
+              <span><i style="background:rgba(229,72,77,.5)"></i>Not covered</span>
+            </div>
+          </div>
+          <aside class="panel">
+            <div class="panel-scroll">
+              <section class="panel-section">
+                <h2>Field</h2>
+                <div class="form-grid">
+                  <label>Name<input type="text" id="field-name" maxlength="40" /></label>
+                  <label>Seed
+                    <span class="input-row"><input type="number" id="field-seed" step="1" /><button type="button" class="btn ghost small" id="btn-random-seed" title="New random seed">↻</button></span>
+                  </label>
+                  <label>Grid
+                    <select id="field-size">
+                      <option value="20">20 × 20 (400 plants)</option>
+                      <option value="30">30 × 30 (900 plants)</option>
+                      <option value="40">40 × 40 (1,600 plants)</option>
+                      <option value="50">50 × 50 (2,500 plants)</option>
+                    </select>
+                  </label>
+                  <label>Diseased share <output id="field-share-out">8%</output>
+                    <input type="range" id="field-share" min="0" max="30" step="1" />
+                  </label>
+                  <fieldset class="radio-row">
+                    <legend>Diseased plants appear</legend>
+                    <label><input type="radio" name="distribution" value="patches" /> In patches</label>
+                    <label><input type="radio" name="distribution" value="scattered" /> Scattered</label>
+                  </fieldset>
+                </div>
+                <div class="btn-row">
+                  <button type="button" class="btn ghost small" id="btn-load-field">Load field…</button>
+                  <button type="button" class="btn ghost small" id="btn-save-field">Save field file</button>
+                </div>
+                <p class="field-stats" id="field-stats"></p>
+              </section>
+
+              <section class="panel-section">
+                <h2>Route</h2>
+                <div class="form-grid">
+                  <label>Altitude <output id="route-alt-out">10 m</output>
+                    <input type="range" id="route-alt" step="1" />
+                  </label>
+                  <label>Line spacing <output id="route-spacing-out">6 m</output>
+                    <input type="range" id="route-spacing" step="0.5" />
+                  </label>
+                </div>
+                <p class="hint">Changing altitude or spacing rebuilds the lawnmower route and drops manual edits.</p>
+                <dl class="kv compact" id="route-stats"></dl>
+                <div class="notice" id="coverage-box"></div>
+              </section>
+
+              <section class="panel-section">
+                <h2>Flight</h2>
+                <label class="block">Battery at take-off <output id="start-battery-out">100%</output>
+                  <input type="range" id="start-battery" min="25" max="100" step="5" value="100" />
+                </label>
+                <p class="hint">The drone heads home on its own below <span id="battery-rule">20%</span>. Start low to see it happen.</p>
+              </section>
+            </div>
+            <div class="panel-footer">
+              <button type="button" class="btn ghost" id="btn-schedule">Schedule…</button>
+              <button type="button" class="btn primary grow" id="btn-start-survey">Start Survey</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Survey flight (UC1, UC2) -->
+      <section class="screen" id="screen-survey" hidden>
+        <div class="work-layout">
+          <div class="stage stage-3d" id="scene-host">
+            <div class="hud">
+              <span class="hud-state" id="hud-state">Ready</span>
+              <span class="hud-sub" id="hud-sub"></span>
+            </div>
+            <div class="seg cam-toggle" role="group" aria-label="Camera">
+              <button type="button" data-cam="chase" class="active">Chase</button>
+              <button type="button" data-cam="overview">Orbit</button>
+            </div>
+            <div class="inset" id="inset-frame"><span>Drone camera · facing down</span></div>
+            <div class="scene-fallback" id="scene-fallback" hidden>
+              <p>The 3D view needs WebGL, which this browser has turned off. The survey still runs. Follow it on the minimap.</p>
+            </div>
+          </div>
+          <aside class="panel">
+            <div class="panel-scroll">
+              <section class="panel-section">
+                <h2>Status <span class="survey-id" id="st-survey-id"></span></h2>
+                <div class="battery">
+                  <div class="battery-head"><span>Battery</span><strong id="st-battery">100%</strong></div>
+                  <div class="battery-bar"><div id="st-battery-bar"></div><i class="battery-mark" id="st-battery-mark"></i></div>
+                </div>
+                <dl class="stat-grid">
+                  <div><dt>Waypoint</dt><dd id="st-waypoint">–</dd></div>
+                  <div><dt>Plants scanned</dt><dd id="st-scanned">0</dd></div>
+                  <div><dt>Flagged</dt><dd id="st-flagged">0</dd></div>
+                  <div><dt>Altitude</dt><dd id="st-altitude">0.0 m</dd></div>
+                  <div><dt>Drone</dt><dd id="st-state">Idle</dd></div>
+                  <div><dt>Flight time</dt><dd id="st-time">0:00</dd></div>
+                </dl>
+              </section>
+              <section class="panel-section">
+                <div class="control-row">
+                  <button type="button" class="btn" id="btn-pause">Pause</button>
+                  <button type="button" class="btn danger" id="btn-stop">Stop</button>
+                  <div class="seg" role="group" aria-label="Simulation speed">
+                    <button type="button" data-speed="1" class="active">1×</button>
+                    <button type="button" data-speed="2">2×</button>
+                    <button type="button" data-speed="4">4×</button>
+                  </div>
+                </div>
+              </section>
+              <section class="panel-section">
+                <canvas class="minimap" id="minimap" aria-label="Survey minimap"></canvas>
+              </section>
+              <section class="panel-section">
+                <h2>Flight log</h2>
+                <ol class="event-log" id="event-log"></ol>
+              </section>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Map dashboard (UC3) -->
+      <section class="screen" id="screen-dashboard" hidden>
+        <div class="work-layout wide-panel">
+          <div class="stage">
+            <div class="stage-toolbar">
+              <label class="history-pick">Survey
+                <select id="dash-history"></select>
+              </label>
+              <label class="check"><input type="checkbox" id="gt-toggle" /> Compare with ground truth</label>
+              <span class="grow"></span>
+              <button type="button" class="btn ghost small" id="dash-new">New survey</button>
+            </div>
+            <p class="disclaimer">Decision support only. Not a plant diagnosis.</p>
+            <canvas class="map-canvas" id="dash-canvas" aria-label="Crop health map"></canvas>
+            <div class="legend">
+              <span><i style="background:#f5c542"></i>Zone pending</span>
+              <span><i style="background:#e5484d"></i>Approved</span>
+              <span><i style="background:#8b8f88"></i>Rejected</span>
+              <span><i style="background:#4fa046"></i>Scanned healthy</span>
+              <span><i style="background:#f0a43a"></i>Flagged</span>
+              <span><i style="background:#6b6f68"></i>Not scanned</span>
+            </div>
+          </div>
+          <aside class="panel">
+            <div class="panel-scroll">
+              <section class="panel-section">
+                <h2 id="dash-title">Survey results</h2>
+                <p class="disclaimer small">Decision support only. Not a plant diagnosis.</p>
+                <dl class="stat-grid" id="summary-grid"></dl>
+                <p class="end-reason" id="dash-end"></p>
+              </section>
+              <section class="panel-section" id="zone-detail-section">
+                <div id="zone-detail"></div>
+              </section>
+              <section class="panel-section">
+                <h2>Zones</h2>
+                <ul class="zone-list" id="zone-list"></ul>
+              </section>
+              <section class="panel-section" id="gt-section" hidden>
+                <h2>Ground truth check <span class="tag">simulation only</span></h2>
+                <dl class="kv compact" id="gt-metrics"></dl>
+              </section>
+              <section class="panel-section">
+                <h2>Export</h2>
+                <div class="btn-row">
+                  <button type="button" class="btn small" id="btn-export-csv">CSV report</button>
+                  <button type="button" class="btn small ghost" id="btn-export-json">Results JSON</button>
+                  <button type="button" class="btn small ghost" id="btn-export-log">Survey log</button>
+                </div>
+              </section>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Quit -->
+      <section class="screen screen-center" id="screen-quit" hidden>
+        <div class="card fatal-card">
+          <h1>Session ended</h1>
+          <p class="muted">Your survey results stay saved in this browser. Close the tab whenever you like.</p>
+          <button type="button" class="btn primary" id="btn-back-menu">Back to main menu</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>Group D: Aditya Sharma, Intisar Waheed, Joseph Weaver, Muhammad Sabih Ul Hussnain, Saleep Shrestha</span>
+      <span>CSC 424-H001 · The University of Southern Mississippi · Fall 2026</span>
+    </footer>
+
+    <!-- Load Field dialog -->
+    <div class="modal" id="load-modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="load-title">
+        <h2 id="load-title">Load field</h2>
+        <p class="muted">Pick a sample field or load a field definition JSON file.</p>
+        <div class="sample-list">
+          <button type="button" class="sample" data-sample="fields/default-field.json"><strong>South Field</strong><span>50 × 50 corn · 8% diseased · patches</span></button>
+          <button type="button" class="sample" data-sample="fields/small-demo-field.json"><strong>Demo Plot</strong><span>30 × 30 corn · 5% diseased · scattered</span></button>
+        </div>
+        <div class="btn-row end">
+          <button type="button" class="btn ghost" data-close>Cancel</button>
+          <button type="button" class="btn" id="btn-pick-file">Choose JSON file…</button>
+        </div>
+        <input type="file" id="file-field" accept=".json,application/json" hidden />
+      </div>
+    </div>
+
+    <!-- Schedule dialog (FR-3.6) -->
+    <div class="modal" id="schedule-modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="schedule-title">
+        <h2 id="schedule-title">Schedule survey</h2>
+        <p class="muted">The Survey Timer starts the current field and route at the set time, with no input from you. Keep this tab open.</p>
+        <label class="block">Start at <input type="time" id="schedule-time" /></label>
+        <div class="btn-row">
+          <button type="button" class="btn ghost small" data-in="30">In 30 seconds</button>
+          <button type="button" class="btn ghost small" data-in="120">In 2 minutes</button>
+          <button type="button" class="btn ghost small" data-in="600">In 10 minutes</button>
+        </div>
+        <div class="btn-row end">
+          <button type="button" class="btn ghost" data-close>Cancel</button>
+          <button type="button" class="btn primary" id="btn-schedule-confirm">Schedule</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quit dialog -->
+    <div class="modal" id="quit-modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="quit-title">
+        <h2 id="quit-title">Quit?</h2>
+        <p class="muted">Any survey in flight stops. Saved results stay in this browser.</p>
+        <div class="btn-row end">
+          <button type="button" class="btn ghost" data-close>Cancel</button>
+          <button type="button" class="btn danger" id="btn-quit-confirm">Quit</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+  </body>
+</html>

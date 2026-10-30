@@ -1,0 +1,14 @@
+{
+  "name": "field-survey-drone",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser MVP of the Group D Field Survey Drone: a simulated drone surveys a corn field, flags diseased plants with a rule-based detector and maps them for the farmer.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "start": "npx --yes http-server -c-1 -p 8080 ."
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

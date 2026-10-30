@@ -1,0 +1,9 @@
+{
+  "fieldId": "demo-plot",
+  "name": "Demo Plot",
+  "cropType": "corn",
+  "grid": { "columns": 30, "rows": 30, "spacing": 1.0 },
+  "seed": 8145,
+  "diseasedShare": 0.05,
+  "distribution": "scattered"
+}
