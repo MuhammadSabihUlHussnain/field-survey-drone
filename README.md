@@ -4,7 +4,7 @@ A browser prototype of Group D's CSC 424 project. A simulated drone flies a plan
 
 > Decision support only. Not a plant diagnosis.
 
-**Live demo:** `https://<your-github-username>.github.io/field-survey-drone/` (after GitHub Pages is turned on, see below)
+**Live demo:** https://muhammadsabihulhussnain.github.io/field-survey-drone/
 
 ## What you can do
 
@@ -42,7 +42,7 @@ Each test is named after the SRS requirement it checks (FR-1.2 seeded fields, FR
 1. Create a repository (for example `field-survey-drone`) and push this folder to its `main` branch.
 2. In the repository, open **Settings → Pages**.
 3. Under **Build and deployment**, choose **Deploy from a branch**, pick `main` and `/ (root)`, and save.
-4. After a minute the site is live at `https://<your-github-username>.github.io/field-survey-drone/`.
+4. After a minute the site is live at `https://<github-username>.github.io/field-survey-drone/`.
 
 Nothing needs building. Three.js is vendored in `vendor/`, so the app does not depend on a CDN.
 
